@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GGCalendar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <style>/* --- FONT & GLOBAL STYLES --- */
+:root {
+    --font-family: Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    
+    /* Light Theme */
+    --bg-color: #ffffff;
+    --text-color: #1c1c1e;
+    --border-color: #e0e0e0;
+    --header-bg: #f8f9fa;
+    --day-bg: #ffffff;
+    --day-bg-hover: #f1f1f1;
+    --other-month-day-color: #adb5bd;
+    --today-highlight-bg: #e7f5ff;
+    --today-highlight-border: #007aff;
+    --modal-bg: #ffffff;
+    --button-bg: #007aff;
+    --button-text: #ffffff;
+    --button-hover-bg: #0056b3;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1c1c1e;
+    --text-color: #ffffff;
+    --border-color: #3a3a3c;
+    --header-bg: #2c2c2e;
+    --day-bg: #1c1c1e;
+    --day-bg-hover: #2c2c2e;
+    --other-month-day-color: #8e8e93;
+    --today-highlight-bg: #3a3a3c;
+    --today-highlight-border: #0a84ff;
+    --modal-bg: #2c2c2e;
+    --button-bg: #0a84ff;
+    --button-text: #ffffff;
+    --button-hover-bg: #005ecb;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0.5rem;
+    transition: background-color 0.3s, color 0.3s;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* --- APP LAYOUT & HEADER --- */
+.app-container {
+    max-width: 98%;
+    width: 100%;
+    height: calc(100vh - 1rem);
+    margin: 0 auto;
+    background-color: var(--header-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#header-banner {
+    width: 100%;
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    display: none;
+    flex-shrink: 0;
+}
+
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+#month-year-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.date-navigation, .view-controls, .action-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* --- BUTTONS --- */
+button {
+    font-family: var(--font-family);
+    border: none;
+    background-color: transparent;
+    color: var(--text-color);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s, color 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+button:hover {
+    background-color: var(--day-bg-hover);
+}
+
+.view-controls button.active, #add-task-btn-main {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border-color: var(--button-bg);
+}
+
+.view-controls button.active:hover, #add-task-btn-main:hover {
+    background-color: var(--button-hover-bg);
+}
+
+.danger-btn {
+    background-color: #dc3545;
+    color: white;
+}
+.danger-btn:hover { background-color: #c82333; }
+
+/* --- CALENDAR VIEWS --- */
+#calendar-container {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.view {
+    display: none;
+    flex: 1;
+    overflow: auto;
+}
+.view.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Monthly View */
+#monthly-view {
+    padding: 0.75rem;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    flex: 1;
+    grid-template-rows: auto repeat(6, 1fr);
+}
+.grid-header {
+    font-weight: 600;
+    text-align: center;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+.day-cell {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-height: 80px;
+    padding: 6px;
+    background-color: var(--day-bg);
+    transition: background-color 0.2s, border-color 0.2s;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.day-cell.drag-over {
+    background-color: var(--today-highlight-bg);
+    border-color: var(--today-highlight-border);
+    border-width: 2px;
+}
+.day-cell:hover { background-color: var(--day-bg-hover); }
+.day-cell.other-month {
+    color: var(--other-month-day-color);
+    background-color: transparent;
+}
+.day-cell.today {
+    background-color: var(--today-highlight-bg);
+    border: 2px solid var(--today-highlight-border);
+}
+.day-number {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+.tasks-list {
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+.task-item-month {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 3px 6px;
+    border-radius: 4px;
+    color: white; /* Default text color */
+    font-weight: 500;
+    cursor: grab;
+    word-wrap: break-word;
+    line-height: 1.3;
+    user-select: none;
+    font-size: 0.85rem;
+}
+.task-item-month:active {
+    cursor: grabbing;
+}
+.task-item-month.dragging {
+    opacity: 0.5;
+}
+.task-item-month.single-event {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.task-item-month.multiple-events {
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
+
+/* Weekly View */
+#weekly-view {
+    padding: 0.75rem;
+}
+#weekly-view.active {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+}
+.week-day-column {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    transition: background-color 0.2s, border-color 0.2s;
+    min-width: 0;
+    overflow: hidden;
+}
+.week-day-column.drag-over {
+    background-color: var(--today-highlight-bg);
+    border-color: var(--today-highlight-border);
+    border-width: 2px;
+}
+.week-day-header {
+    font-weight: bold;
+    text-align: center;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+.task-item-week {
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    color: white; /* Default text color */
+    font-size: 0.9rem;
+    cursor: grab;
+    user-select: none;
+    line-height: 1.3;
+    min-width: 0;
+    overflow: hidden;
+}
+.task-item-week:active {
+    cursor: grabbing;
+}
+.task-item-week.dragging {
+    opacity: 0.5;
+}
+.task-item-week-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+.task-item-week-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+    min-width: 0;
+}
+.task-item-week-details {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+    line-height: 1.2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    min-width: 0;
+}
+
+
+/* --- MODALS --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+.modal-content {
+    background-color: var(--modal-bg);
+    margin: 10% auto;
+    padding: 25px;
+    border: 1px solid var(--border-color);
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    position: relative;
+}
+.close-btn {
+    color: var(--other-month-day-color);
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close-btn:hover { color: var(--text-color); }
+
+/* Form Styles */
+#task-form, .setting-item, .io-section { display: flex; flex-direction: column; gap: 15px; }
+#task-form label, .setting-item label { font-weight: 600; margin-bottom: -5px; }
+input[type="text"], textarea, select, input[type="date"], input[type="time"], input[type="number"] {
+    width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+    background-color: var(--day-bg); color: var(--text-color); font-size: 1rem; box-sizing: border-box;
+}
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 1rem; }
+.recurrence-fieldset { border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; }
+.modal-content.large { max-width: 700px; }
+.date-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+#category-container { display: flex; gap: 10px; align-items: center; }
+#task-category-select { flex-grow: 1; }
+.category-list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border-color); }
+.category-color-dot { width: 20px; height: 20px; border-radius: 50%; margin-right: 10px; display: inline-block; vertical-align: middle; border: 1px solid var(--border-color);}
+.category-add-form { margin-top: 20px; display: flex; gap: 10px; align-items: center; }
+#new-category-color, #new-category-text-color { min-width: 40px; padding: 2px; height: 40px;}
+.custom-recurrence-row { display: flex; align-items: center; gap: 10px; }
+#recurrence-weekdays { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Image Cropper Modal */
+.cropper-container {
+    width: 100%;
+    height: 400px;
+    margin-top: 1rem;
+}
+#image-to-crop {
+    display: block;
+    max-width: 100%;
+}
+
+/* UI ENHANCEMENTS */
+.day-cell.selected { border-color: var(--button-bg); box-shadow: inset 0 0 0 2px var(--button-bg); }
+.task-item-month.copied, .task-item-week.copied, .task-item-day.copied { outline: 2px dashed var(--button-bg); opacity: 0.7; }
+.task-item-month-content, .task-item-week-content, .task-item-day-content { font-size: 0.8rem; line-height: 1.3; }
+.task-item-week-content .task-details, .task-item-day-content .task-details { opacity: 0.7; white-space: pre-wrap; word-break: break-word; }
+
+/* --- RESPONSIVENESS --- */
+@media (max-width: 768px) {
+    body { padding: 0.5rem; }
+    .main-header { flex-direction: column; align-items: stretch; }
+    #month-year-header { font-size: 1.5rem; }
+    .day-cell { height: 80px; }
+    .day-number { font-size: 0.8rem; }
+    #weekly-view { grid-template-columns: 1fr; }
+}</style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="header-banner"></div>
+
+        <header class="main-header">
+            <div class="date-navigation">
+                <button id="prev-btn">&lt;</button>
+                <h1 id="month-year-header">September 2025</h1>
+                <button id="next-btn">&gt;</button>
+                <button id="today-btn">Today</button>
+            </div>
+            <div class="view-controls">
+                <button id="month-view-btn" class="active">Month</button>
+                <button id="week-view-btn">Week</button>
+            </div>
+            <div class="action-controls">
+                <button id="add-task-btn-main">＋ Add Item</button>
+                <button id="settings-btn">⚙️</button>
+                <button id="import-export-btn">💾</button>
+            </div>
+        </header>
+
+        <main id="calendar-container">
+            <div id="monthly-view" class="view active">
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+            <div id="weekly-view" class="view"></div>
+        </main>
+    </div>
+
+    <div id="task-modal" class="modal">
+        <div class="modal-content large">
+            <span class="close-btn">&times;</span>
+            <h2 id="modal-title">Add Item</h2>
+            <form id="task-form">
+                <input type="hidden" id="task-id">
+                
+                <label for="task-title">Title</label>
+                <input type="text" id="task-title" required placeholder="Add a title">
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <input type="checkbox" id="all-day-toggle" style="width: auto;">
+                    <label for="all-day-toggle" style="margin: 0;">All Day (12:00 AM - 11:59 PM)</label>
+                </div>
+
+                <div class="date-time-grid">
+                    <div>
+                        <label for="task-start-date">Start Date</label>
+                        <input type="date" id="task-start-date">
+                    </div>
+                    <div>
+                        <label for="task-start-time">Start Time</label>
+                        <input type="time" id="task-start-time">
+                    </div>
+                    <div>
+                        <label for="task-end-date">End Date</label>
+                        <input type="date" id="task-end-date">
+                    </div>
+                    <div>
+                        <label for="task-end-time">End Time</label>
+                        <input type="time" id="task-end-time">
+                    </div>
+                </div>
+
+                <label>Category / Color Tag</label>
+                <div id="category-container">
+                     <select id="task-category-select"></select>
+                    <button type="button" id="manage-categories-btn">Manage</button>
+                </div>
+                
+                <label for="task-details">Details / Notes</label>
+                <textarea id="task-details" rows="4" placeholder="Add details, links, etc."></textarea>
+                
+                <fieldset class="recurrence-fieldset">
+                    <legend>Recurrence</legend>
+                    <select id="recurrence-rule">
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                    
+                    <div id="custom-recurrence-options" style="display: none; margin-top: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;">
+                        <div class="custom-recurrence-row">
+                            <span>Every</span>
+                            <input type="number" id="recurrence-interval" value="1" min="1" style="width: 60px;">
+                            <select id="recurrence-frequency">
+                                <option value="days">Day(s)</option>
+                                <option value="weeks">Week(s)</option>
+                                <option value="months">Month(s)</option>
+                                <option value="years">Year(s)</option>
+                            </select>
+                        </div>
+                        <div id="recurrence-weekdays" style="display: none; margin-top: 10px;">
+                            <label><input type="checkbox" value="0"> Sun</label>
+                            <label><input type="checkbox" value="1"> Mon</label>
+                            <label><input type="checkbox" value="2"> Tue</label>
+                            <label><input type="checkbox" value="3"> Wed</label>
+                            <label><input type="checkbox" value="4"> Thu</label>
+                            <label><input type="checkbox" value="5"> Fri</label>
+                            <label><input type="checkbox" value="6"> Sat</label>
+                        </div>
+                    </div>
+
+                    <label for="recurrence-end" style="margin-top: 15px;">End Date (Optional)</label>
+                    <input type="date" id="recurrence-end">
+                </fieldset>
+
+                <div class="form-actions">
+                    <button type="submit" id="save-task-btn">Save</button>
+                    <button type="button" id="duplicate-task-btn" style="display: none; background-color: #28a745; border-color: #28a745;">Duplicate to Next Day</button>
+                    <button type="button" id="delete-task-btn" class="danger-btn" style="display: none;">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Manage Categories</h2>
+            <div id="category-list"></div>
+            <div class="category-add-form">
+                <input type="hidden" id="editing-category-name">
+                <input type="text" id="new-category-name" placeholder="Category name">
+                <input type="color" id="new-category-color" title="Background Color" value="#3a86ff">
+                <input type="color" id="new-category-text-color" title="Text Color" value="#ffffff">
+                <button type="button" id="add-category-btn">Add</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Settings</h2>
+            <div class="setting-item">
+                <label for="theme-select">Color Theme</label>
+                <select id="theme-select">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label for="header-image-upload">Custom Header Image (for current month)</label>
+                <input type="file" id="header-image-upload" accept="image/png, image/jpeg">
+                <button id="remove-header-image-btn">Remove Image</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-export-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Import / Export Data</h2>
+            <div class="io-section">
+                <h3>Export</h3>
+                <p>Save all your calendar data to a file.</p>
+                <button id="export-json-btn">Export as JSON</button>
+                <button id="export-csv-btn">Export as CSV</button>
+            </div>
+            <div class="io-section">
+                <h3>Import</h3>
+                <p>Load calendar data from a JSON file. This will merge with existing data.</p>
+                <input type="file" id="import-file-input" accept=".json">
+            </div>
+        </div>
+    </div>
+
+    <div id="image-cropper-modal" class="modal">
+        <div class="modal-content large">
+             <span class="close-btn">&times;</span>
+            <h2>Crop Header Image</h2>
+            <div class="cropper-container">
+                <img id="image-to-crop" src="" alt="Image for cropping">
+            </div>
+            <div class="form-actions" style="margin-top: 1rem;">
+                <button id="save-cropped-image-btn">Save Image</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => {
+    // --- STATE MANAGEMENT ---
+    let currentDate = new Date();
+    let tasks = {};
+    let settings = {
+        theme: 'light',
+        headerImages: {},
+        categories: {
+            'Work': { color: '#dc2626', textColor: '#ffffff' },
+            'Personal': { color: '#2563eb', textColor: '#ffffff' },
+            'Urgent': { color: '#f59e0b', textColor: '#ffffff' }
+        }
+    };
+    let currentView = 'month';
+    let sortableInstance = null;
+    let selectedDates = [];
+    let clipboardItem = null;
+    let selectedTaskForCopy = null;
+    let cropper = null;
+
+    // --- DOM ELEMENTS ---
+    const monthYearHeader = document.getElementById('month-year-header');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const calendarContainer = document.getElementById('calendar-container');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const todayBtn = document.getElementById('today-btn');
+    const monthViewBtn = document.getElementById('month-view-btn');
+    const weekViewBtn = document.getElementById('week-view-btn');
+    const monthView = document.getElementById('monthly-view');
+    const weekView = document.getElementById('weekly-view');
+    const taskModal = document.getElementById('task-modal');
+    const settingsModal = document.getElementById('settings-modal');
+    const importExportModal = document.getElementById('import-export-modal');
+    const categoryModal = document.getElementById('category-modal');
+    const imageCropperModal = document.getElementById('image-cropper-modal');
+    const closeBtns = document.querySelectorAll('.close-btn');
+    const taskForm = document.getElementById('task-form');
+    const modalTitle = document.getElementById('modal-title');
+    const taskIdInput = document.getElementById('task-id');
+    const deleteTaskBtn = document.getElementById('delete-task-btn');
+    const duplicateTaskBtn = document.getElementById('duplicate-task-btn');
+    const recurrenceRuleInput = document.getElementById('recurrence-rule');
+    const recurrenceEndInput = document.getElementById('recurrence-end');
+    const customRecurrenceOptions = document.getElementById('custom-recurrence-options');
+    const allDayToggle = document.getElementById('all-day-toggle');
+
+    // --- INITIALIZATION ---
+    async function init() {
+        const hasLocalTasks = loadData();
+
+        // On a new browser/device, seed the calendar from the JSON file
+        // stored beside index.html on GitHub Pages.
+        if (!hasLocalTasks) {
+            await loadDefaultBackup();
+        }
+
+        applySettings();
+        addEventListeners();
+        render();
+    }
+
+    // --- DATA HANDLING ---
+    function saveData() {
+        localStorage.setItem('ggCalendarTasks', JSON.stringify(tasks));
+        localStorage.setItem('ggCalendarSettings', JSON.stringify(settings));
+    }
+
+    function loadData() {
+        const storedTasks = localStorage.getItem('ggCalendarTasks');
+        tasks = storedTasks ? JSON.parse(storedTasks) : {};
+
+        const storedSettings = localStorage.getItem('ggCalendarSettings');
+        if (storedSettings) {
+           settings = { ...settings, ...JSON.parse(storedSettings) };
+           migrateCategorySettings();
+        }
+
+        return !!storedTasks;
+    }
+
+    function migrateCategorySettings() {
+        if (!settings.categories) settings.categories = {};
+        Object.keys(settings.categories).forEach(name => {
+            if (typeof settings.categories[name] === 'string') {
+                settings.categories[name] = {
+                    color: settings.categories[name],
+                    textColor: '#ffffff'
+                };
+            }
+        });
+    }
+
+    async function loadDefaultBackup() {
+        try {
+            const response = await fetch('./ggcalendar-backup.json', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const importedData = await response.json();
+
+            if (importedData.tasks) {
+                tasks = importedData.tasks;
+            }
+
+            if (importedData.settings) {
+                settings = { ...settings, ...importedData.settings };
+                migrateCategorySettings();
+            }
+
+            saveData();
+            console.log('GGCalendar: loaded default GitHub calendar data.');
+        } catch (error) {
+            console.warn('GGCalendar: could not load ggcalendar-backup.json.', error);
+        }
+    }
+
+    // --- RENDERING ENGINE ---
+    function render() {
+        updateHeader();
+        switch (currentView) {
+            case 'month': renderMonthView(); break;
+            case 'week': renderWeekView(); break;
+        }
+        updateActiveView();
+        applyHeaderImage();
+        updateDaySelectionVisuals();
+    }
+
+    function updateHeader() {
+        const month = currentDate.toLocaleString('default', { month: 'long' });
+        const year = currentDate.getFullYear();
+        monthYearHeader.textContent = `${month} ${year}`;
+    }
+
+    function updateActiveView() {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`${currentView}ly-view`).classList.add('active');
+        document.querySelectorAll('.view-controls button').forEach(b => b.classList.remove('active'));
+        document.getElementById(`${currentView}-view-btn`).classList.add('active');
+    }
+
+    // --- MONTH VIEW ---
+    function renderMonthView() {
+        calendarGrid.innerHTML = '';
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        dayNames.forEach(day => {
+            const headerCell = document.createElement('div');
+            headerCell.className = 'grid-header';
+            headerCell.textContent = day;
+            calendarGrid.appendChild(headerCell);
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const startDayOfWeek = firstDayOfMonth.getDay();
+        
+        const calendarStartDate = new Date(firstDayOfMonth);
+        calendarStartDate.setDate(calendarStartDate.getDate() - startDayOfWeek);
+
+        for (let i = 0; i < 42; i++) {
+            const date = new Date(calendarStartDate);
+            createDayCell(date);
+            calendarStartDate.setDate(calendarStartDate.getDate() + 1);
+        }
+    }
+
+    function createDayCell(date) {
+        const cell = document.createElement('div');
+        const isOtherMonth = date.getMonth() !== currentDate.getMonth();
+        cell.className = 'day-cell' + (isOtherMonth ? ' other-month' : '');
+        
+        const today = new Date();
+        if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()) {
+            cell.classList.add('today');
+        }
+        
+        const dateString = toYYYYMMDD(date);
+        cell.dataset.date = dateString;
+        cell.innerHTML = `<div class="day-number">${date.getDate()}</div><div class="tasks-list"></div>`;
+        
+        const tasksList = cell.querySelector('.tasks-list');
+        const dayTasks = getTasksForDate(date);
+        const taskCount = dayTasks.length;
+
+        dayTasks.forEach(task => {
+            const taskEl = document.createElement('div');
+            // Add class based on number of events in the day
+            taskEl.className = taskCount === 1 ? 'task-item-month single-event' : 'task-item-month multiple-events';
+            taskEl.dataset.taskId = task.id;
+            taskEl.draggable = true;
+            const category = settings.categories[task.category] || { color: '#888', textColor: '#fff' };
+            taskEl.style.backgroundColor = category.color;
+            taskEl.style.color = category.textColor;
+
+            taskEl.innerHTML = `<div class="task-item-month-content">${task.startTime ? formatTime(task.startTime) : ''} ${task.title}</div>`;
+
+            // Add drag event listeners
+            taskEl.addEventListener('dragstart', handleDragStart);
+            taskEl.addEventListener('dragend', handleDragEnd);
+
+            tasksList.appendChild(taskEl);
+        });
+
+        // Add drop zone listeners to day cell
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop);
+
+        calendarGrid.appendChild(cell);
+    }
+
+    // --- WEEK VIEW ---
+    function renderWeekView() {
+        // Ensure week view is completely cleared before rendering
+        while (weekView.firstChild) {
+            weekView.removeChild(weekView.firstChild);
+        }
+
+        const startOfWeek = new Date(currentDate);
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            const dayColumn = document.createElement('div');
+            dayColumn.className = 'week-day-column';
+            dayColumn.dataset.date = toYYYYMMDD(date);
+            dayColumn.innerHTML = `<div class="week-day-header">${date.toLocaleString('default', { weekday: 'short' })} ${date.getDate()}</div>`;
+
+            const dayTasks = getTasksForDate(date);
+            const taskCount = dayTasks.length;
+
+            dayTasks.forEach(task => {
+                const taskEl = document.createElement('div');
+                taskEl.className = 'task-item-week';
+                taskEl.dataset.taskId = task.id;
+                taskEl.draggable = true;
+                const category = settings.categories[task.category] || { color: '#888', textColor: '#fff' };
+                taskEl.style.backgroundColor = category.color;
+                taskEl.style.color = category.textColor;
+
+                // Build content with time and title
+                const timeDisplay = task.startTime ? formatTime(task.startTime) : '';
+                const titleHTML = `<div class="task-item-week-title">${timeDisplay}${timeDisplay ? ' – ' : ''}${task.title}</div>`;
+
+                // Add details/notes if they exist
+                let detailsHTML = '';
+                if (task.details && task.details.trim()) {
+                    // Adjust clamp based on number of tasks
+                    const clampValue = taskCount > 3 ? 2 : 3;
+                    detailsHTML = `<div class="task-item-week-details" style="-webkit-line-clamp: ${clampValue};">${task.details}</div>`;
+                }
+
+                taskEl.innerHTML = `<div class="task-item-week-content">${titleHTML}${detailsHTML}</div>`;
+
+                // Add drag event listeners
+                taskEl.addEventListener('dragstart', handleDragStart);
+                taskEl.addEventListener('dragend', handleDragEnd);
+
+                dayColumn.appendChild(taskEl);
+            });
+
+            // Add drop zone listeners to week day column
+            dayColumn.addEventListener('dragover', handleDragOver);
+            dayColumn.addEventListener('dragleave', handleDragLeave);
+            dayColumn.addEventListener('drop', handleDrop);
+
+            weekView.appendChild(dayColumn);
+        }
+    }
+
+
+    // --- TASK MANAGEMENT & RECURRENCE ---
+    function getTasksForDate(date) {
+        let allTasksForDay = [];
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+        for (const key in tasks) {
+            for (const task of tasks[key]) {
+                const startDate = new Date(task.startDate + 'T00:00:00');
+                const endDate = task.endDate ? new Date(task.endDate + 'T23:59:59') : startDate;
+                
+                if ((dateOnly >= startDate && dateOnly <= endDate) || isRecurringOnDate(task, dateOnly)) {
+                    allTasksForDay.push(task);
+                }
+            }
+        }
+        allTasksForDay = [...new Map(allTasksForDay.map(item => [item['id'], item])).values()];
+        return allTasksForDay.sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
+    }
+    
+    function isRecurringOnDate(task, date) {
+        if (!task.recurrence || task.recurrence.rule === 'none') return false;
+        
+        const startDate = new Date(task.startDate + 'T00:00:00');
+        const recurrenceEnd = task.recurrence.end ? new Date(task.recurrence.end + 'T23:59:59') : null;
+
+        if (date < startDate || (recurrenceEnd && date > recurrenceEnd)) return false;
+        
+        const rule = task.recurrence.rule;
+        const freq = task.recurrence.frequency;
+        const interval = task.recurrence.interval || 1;
+
+        switch (rule) {
+            case 'daily': return true;
+            case 'weekly': return date.getDay() === startDate.getDay();
+            case 'monthly': return date.getDate() === startDate.getDate();
+            case 'yearly': return date.getMonth() === startDate.getMonth() && date.getDate() === startDate.getDate();
+            case 'custom':
+                const timeDiff = date.getTime() - startDate.getTime();
+                const dayDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+                
+                if (freq === 'days') {
+                    return dayDiff % interval === 0;
+                } else if (freq === 'weeks') {
+                    const weekdays = task.recurrence.weekdays;
+                    if (!weekdays || weekdays.length === 0) { // Legacy weekly recurrence
+                        return date.getDay() === startDate.getDay() && (Math.floor(dayDiff / 7)) % interval === 0;
+                    }
+                    return weekdays.includes(String(date.getDay())) && (Math.floor(dayDiff / 7)) % interval === 0;
+                } else if (freq === 'months') {
+                    const monthDiff = (date.getFullYear() - startDate.getFullYear()) * 12 + (date.getMonth() - startDate.getMonth());
+                    return date.getDate() === startDate.getDate() && monthDiff >= 0 && monthDiff % interval === 0;
+                } else if (freq === 'years') {
+                    const yearDiff = date.getFullYear() - startDate.getFullYear();
+                    return date.getDate() === startDate.getDate() && date.getMonth() === startDate.getMonth() && yearDiff >= 0 && yearDiff % interval === 0;
+                }
+            default: return false;
+        }
+    }
+
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const id = taskIdInput.value || Date.now().toString();
+        
+        const customRecurrenceWeekdays = Array.from(document.querySelectorAll('#recurrence-weekdays input:checked')).map(cb => cb.value);
+
+        const taskData = {
+            id: id,
+            title: document.getElementById('task-title').value,
+            startDate: document.getElementById('task-start-date').value,
+            startTime: document.getElementById('task-start-time').value,
+            endDate: document.getElementById('task-end-date').value,
+            endTime: document.getElementById('task-end-time').value,
+            category: document.getElementById('task-category-select').value,
+            details: document.getElementById('task-details').value,
+            recurrence: {
+                rule: recurrenceRuleInput.value,
+                end: recurrenceEndInput.value,
+                interval: document.getElementById('recurrence-interval').value,
+                frequency: document.getElementById('recurrence-frequency').value,
+                weekdays: customRecurrenceWeekdays
+            }
+        };
+
+        if (!taskData.startDate) {
+            alert('Start date is required to save an event.');
+            return;
+        }
+        if (!taskData.endDate) taskData.endDate = taskData.startDate;
+
+        // If end time is missing, default to 30 mins after start time
+        if (taskData.startTime && !taskData.endTime) {
+            const tempDate = new Date(`${taskData.startDate}T${taskData.startTime}`);
+            tempDate.setMinutes(tempDate.getMinutes() + 30);
+            taskData.endTime = `${String(tempDate.getHours()).padStart(2, '0')}:${String(tempDate.getMinutes()).padStart(2, '0')}`;
+        }
+        
+        const datesToApply = selectedDates.length > 0 ? selectedDates : [taskData.startDate];
+        if (taskIdInput.value) deleteTaskById(id);
+
+        datesToApply.forEach(dateStr => {
+            const dateDiff = new Date(taskData.endDate) - new Date(taskData.startDate);
+            const newStartDate = new Date(dateStr + 'T00:00:00');
+            const newEndDate = new Date(newStartDate.getTime() + dateDiff);
+
+            const newTask = {
+                ...taskData,
+                id: datesToApply.length > 1 ? Date.now().toString() + Math.random() : taskData.id,
+                startDate: toYYYYMMDD(newStartDate),
+                endDate: toYYYYMMDD(newEndDate)
+            };
+
+            const key = newTask.startDate;
+            if (!tasks[key]) tasks[key] = [];
+            tasks[key].push(newTask);
+        });
+        
+        saveData();
+        closeModal(taskModal);
+        clearSelections();
+        render();
+    }
+
+    function deleteTaskById(id) {
+        for (const date in tasks) {
+            tasks[date] = tasks[date].filter(t => t.id !== id);
+            if (tasks[date].length === 0) delete tasks[date];
+        }
+    }
+    
+    function deleteTask() {
+        const id = taskIdInput.value;
+        if (!id) return;
+        deleteTaskById(id);
+        saveData();
+        closeModal(taskModal);
+        render();
+    }
+
+    function duplicateTask() {
+        const id = taskIdInput.value;
+        if (!id) return;
+
+        const originalTask = findTaskById(id);
+        if (!originalTask) return;
+
+        // Calculate next day
+        const currentStartDate = new Date(originalTask.startDate + 'T00:00:00');
+        const nextDay = new Date(currentStartDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const currentEndDate = new Date(originalTask.endDate + 'T00:00:00');
+        const duration = currentEndDate - currentStartDate;
+        const nextEndDay = new Date(nextDay.getTime() + duration);
+
+        // Create duplicate task
+        const duplicateTaskData = {
+            ...originalTask,
+            id: Date.now().toString() + Math.random(),
+            startDate: toYYYYMMDD(nextDay),
+            endDate: toYYYYMMDD(nextEndDay)
+        };
+
+        const key = duplicateTaskData.startDate;
+        if (!tasks[key]) tasks[key] = [];
+        tasks[key].push(duplicateTaskData);
+
+        saveData();
+        closeModal(taskModal);
+        render();
+    }
+
+    function openTaskModal(date, task = null) {
+        taskForm.reset();
+        populateCategorySelect();
+
+        // Reset all-day toggle and enable time inputs
+        allDayToggle.checked = false;
+        document.getElementById('task-start-time').disabled = false;
+        document.getElementById('task-end-time').disabled = false;
+
+        if (task) {
+            modalTitle.textContent = 'Edit Item';
+            taskIdInput.value = task.id;
+            document.getElementById('task-title').value = task.title;
+            document.getElementById('task-start-date').value = task.startDate || '';
+            document.getElementById('task-start-time').value = task.startTime || '';
+            document.getElementById('task-end-date').value = task.endDate || '';
+            document.getElementById('task-end-time').value = task.endTime || '';
+            document.getElementById('task-category-select').value = task.category;
+            document.getElementById('task-details').value = task.details || '';
+
+            // Check if it's an all-day event (00:00 to 23:59)
+            if (task.startTime === '00:00' && task.endTime === '23:59') {
+                allDayToggle.checked = true;
+                document.getElementById('task-start-time').disabled = true;
+                document.getElementById('task-end-time').disabled = true;
+            }
+
+            // Recurrence
+            recurrenceRuleInput.value = task.recurrence?.rule || 'none';
+            recurrenceEndInput.value = task.recurrence?.end || '';
+            document.getElementById('recurrence-interval').value = task.recurrence?.interval || 1;
+            document.getElementById('recurrence-frequency').value = task.recurrence?.frequency || 'days';
+            document.querySelectorAll('#recurrence-weekdays input').forEach(cb => {
+                cb.checked = task.recurrence?.weekdays?.includes(cb.value) || false;
+            });
+
+            deleteTaskBtn.style.display = 'inline-block';
+            duplicateTaskBtn.style.display = 'inline-block';
+        } else {
+            modalTitle.textContent = selectedDates.length > 1 ? `Add Item to ${selectedDates.length} Days` : 'Add Item';
+            taskIdInput.value = '';
+            const startDateStr = date instanceof Date ? toYYYYMMDD(date) : date;
+            const now = new Date();
+            const startTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const endDate = new Date(`${startDateStr}T${startTime}`);
+            endDate.setMinutes(endDate.getMinutes() + 30);
+
+            document.getElementById('task-start-date').value = startDateStr;
+            document.getElementById('task-start-time').value = startTime;
+            document.getElementById('task-end-date').value = toYYYYMMDD(endDate);
+            document.getElementById('task-end-time').value = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+            deleteTaskBtn.style.display = 'none';
+            duplicateTaskBtn.style.display = 'none';
+        }
+        toggleCustomRecurrence();
+        taskModal.style.display = 'block';
+    }
+
+    // --- EVENT LISTENERS ---
+    function addEventListeners() {
+        prevBtn.addEventListener('click', () => navigate(-1));
+        nextBtn.addEventListener('click', () => navigate(1));
+        todayBtn.addEventListener('click', () => { currentDate = new Date(); render(); });
+        monthViewBtn.addEventListener('click', () => switchView('month'));
+        weekViewBtn.addEventListener('click', () => switchView('week'));
+        
+        document.getElementById('add-task-btn-main').addEventListener('click', () => {
+             const targetDate = selectedDates.length > 0 ? new Date(selectedDates[0] + 'T00:00:00') : currentDate;
+             openTaskModal(targetDate);
+        });
+        
+        document.getElementById('settings-btn').addEventListener('click', () => settingsModal.style.display = 'block');
+        document.getElementById('import-export-btn').addEventListener('click', () => importExportModal.style.display = 'block');
+        
+        closeBtns.forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal'))));
+        window.addEventListener('click', e => { if (e.target.classList.contains('modal')) closeModal(e.target); });
+        
+        taskForm.addEventListener('submit', handleFormSubmit);
+        deleteTaskBtn.addEventListener('click', deleteTask);
+        duplicateTaskBtn.addEventListener('click', duplicateTask);
+
+        calendarContainer.addEventListener('click', handleCalendarClick);
+        document.addEventListener('keydown', handleCopyPaste);
+        
+        recurrenceRuleInput.addEventListener('change', toggleCustomRecurrence);
+        document.getElementById('recurrence-frequency').addEventListener('change', toggleCustomRecurrence);
+        allDayToggle.addEventListener('change', handleAllDayToggle);
+
+        setupCategoryEventListeners();
+        setupSettingsListeners();
+        setupImportExportListeners();
+    }
+    
+    function handleCalendarClick(e) {
+        const dayCell = e.target.closest('.day-cell, .week-day-column');
+        const taskItem = e.target.closest('[data-task-id]');
+
+        if (taskItem) {
+            e.stopPropagation(); // Prevent day selection when clicking a task
+            const taskId = taskItem.dataset.taskId;
+            selectedTaskForCopy = findTaskById(taskId);
+            
+            // Highlight for copy-paste
+            document.querySelectorAll('.copied').forEach(el => el.classList.remove('copied'));
+            taskItem.classList.add('copied');
+            
+            // Open modal on double-click, select on single click
+            if (e.detail === 2) { // dblclick
+                openTaskModal(new Date(selectedTaskForCopy.startDate + 'T00:00:00'), selectedTaskForCopy);
+            }
+        } else if (dayCell) {
+            handleDaySelection(e, dayCell.dataset.date);
+        }
+    }
+
+    function handleDaySelection(e, dateString) {
+        const index = selectedDates.indexOf(dateString);
+        if (!e.ctrlKey && !e.shiftKey) {
+            clearSelections();
+            selectedDates.push(dateString);
+        } else {
+            if (index > -1) selectedDates.splice(index, 1);
+            else selectedDates.push(dateString);
+        }
+        updateDaySelectionVisuals();
+    }
+    
+    function handleCopyPaste(e) {
+        // Copy with Ctrl+C
+        if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+            if (selectedTaskForCopy) {
+                clipboardItem = { ...selectedTaskForCopy };
+                 // Optional: visual feedback for copy
+                const copiedElement = document.querySelector(`[data-task-id="${selectedTaskForCopy.id}"]`);
+                if(copiedElement) {
+                    copiedElement.style.transition = 'outline 0.1s ease-in-out';
+                    copiedElement.style.outline = '3px solid var(--button-bg)';
+                    setTimeout(() => { copiedElement.style.outline = '2px dashed var(--button-bg)'; }, 200);
+                }
+            }
+        }
+
+        // Paste with Ctrl+V
+        if (e.ctrlKey && e.key.toLowerCase() === 'v') {
+            if (clipboardItem && selectedDates.length > 0) {
+                e.preventDefault();
+                selectedDates.forEach(dateStr => {
+                    const duration = (new Date(clipboardItem.endDate) - new Date(clipboardItem.startDate)) || 0;
+                    const newStartDate = new Date(dateStr + 'T00:00:00');
+                    const newEndDate = new Date(newStartDate.getTime() + duration);
+
+                    const newTask = {
+                        ...clipboardItem,
+                        id: Date.now().toString() + Math.random(),
+                        startDate: toYYYYMMDD(newStartDate),
+                        endDate: toYYYYMMDD(newEndDate)
+                    };
+                    const key = newTask.startDate;
+                    if (!tasks[key]) tasks[key] = [];
+                    tasks[key].push(newTask);
+                });
+                saveData();
+                clearSelections();
+                render();
+            }
+        }
+    }
+
+    // --- DRAG AND DROP HANDLERS ---
+    let draggedTask = null;
+
+    function handleDragStart(e) {
+        const taskId = e.target.dataset.taskId;
+        draggedTask = findTaskById(taskId);
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.innerHTML);
+    }
+
+    function handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        draggedTask = null;
+        // Remove all drag-over classes
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    }
+
+    function handleDragOver(e) {
+        if (!draggedTask) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const dropZone = e.currentTarget;
+        if (dropZone.classList.contains('day-cell') || dropZone.classList.contains('week-day-column')) {
+            dropZone.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave(e) {
+        const dropZone = e.currentTarget;
+        // Only remove if actually leaving the element (not child elements)
+        if (e.target === dropZone) {
+            dropZone.classList.remove('drag-over');
+        }
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const dropZone = e.currentTarget;
+        dropZone.classList.remove('drag-over');
+
+        if (!draggedTask) return;
+
+        const newDateStr = dropZone.dataset.date;
+        if (!newDateStr) return;
+
+        // Calculate duration
+        const oldStartDate = new Date(draggedTask.startDate + 'T00:00:00');
+        const oldEndDate = new Date(draggedTask.endDate + 'T00:00:00');
+        const duration = oldEndDate - oldStartDate;
+
+        // Set new dates
+        const newStartDate = new Date(newDateStr + 'T00:00:00');
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+        // Delete old task
+        deleteTaskById(draggedTask.id);
+
+        // Create new task with updated dates
+        const updatedTask = {
+            ...draggedTask,
+            startDate: toYYYYMMDD(newStartDate),
+            endDate: toYYYYMMDD(newEndDate)
+        };
+
+        const key = updatedTask.startDate;
+        if (!tasks[key]) tasks[key] = [];
+        tasks[key].push(updatedTask);
+
+        saveData();
+        render();
+        draggedTask = null;
+    }
+
+
+    function toggleCustomRecurrence() {
+        const rule = recurrenceRuleInput.value;
+        const freq = document.getElementById('recurrence-frequency').value;
+        const weekdaysDiv = document.getElementById('recurrence-weekdays');
+
+        if (rule === 'custom') {
+            customRecurrenceOptions.style.display = 'block';
+            weekdaysDiv.style.display = (freq === 'weeks') ? 'flex' : 'none';
+        } else {
+            customRecurrenceOptions.style.display = 'none';
+        }
+    }
+
+    function handleAllDayToggle() {
+        const startTimeInput = document.getElementById('task-start-time');
+        const endTimeInput = document.getElementById('task-end-time');
+
+        if (allDayToggle.checked) {
+            // Set all-day times: 12:00 AM to 11:59 PM
+            startTimeInput.value = '00:00';
+            endTimeInput.value = '23:59';
+            startTimeInput.disabled = true;
+            endTimeInput.disabled = true;
+        } else {
+            // Re-enable time inputs
+            startTimeInput.disabled = false;
+            endTimeInput.disabled = false;
+        }
+    }
+
+    function clearSelections() {
+        selectedDates = [];
+        clipboardItem = null;
+        selectedTaskForCopy = null;
+        document.querySelectorAll('.copied').forEach(el => el.classList.remove('copied'));
+        updateDaySelectionVisuals();
+    }
+
+    function updateDaySelectionVisuals() {
+        document.querySelectorAll('.day-cell.selected, .week-day-column.selected').forEach(el => el.classList.remove('selected'));
+        selectedDates.forEach(dateStr => {
+            const cell = document.querySelector(`[data-date="${dateStr}"]`);
+            if (cell) cell.classList.add('selected');
+        });
+    }
+
+    function navigate(direction) {
+        if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + direction);
+        else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (7 * direction));
+        clearSelections();
+        render();
+    }
+    
+    function switchView(view, date = null) {
+        currentView = view;
+        if (date) currentDate = date;
+        clearSelections();
+        render();
+    }
+    
+    function closeModal(modal) {
+        if (modal) modal.style.display = 'none';
+        if (modal === imageCropperModal && cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    }
+    
+    function findTaskById(id) {
+        for (const date in tasks) {
+            const task = tasks[date].find(t => t.id === id);
+            if (task) return task;
+        }
+        return null;
+    }
+
+    // --- CATEGORIES ---
+    function setupCategoryEventListeners() {
+        document.getElementById('manage-categories-btn').addEventListener('click', () => {
+            renderCategoryManager();
+            categoryModal.style.display = 'block';
+        });
+        
+        document.getElementById('add-category-btn').addEventListener('click', () => {
+            const nameInput = document.getElementById('new-category-name');
+            const colorInput = document.getElementById('new-category-color');
+            const textColorInput = document.getElementById('new-category-text-color');
+            const editingNameInput = document.getElementById('editing-category-name');
+            
+            const name = nameInput.value.trim();
+            const editingName = editingNameInput.value;
+
+            if (name) {
+                if (editingName && editingName !== name) {
+                    delete settings.categories[editingName];
+                }
+                settings.categories[name] = { color: colorInput.value, textColor: textColorInput.value };
+                saveData();
+                renderCategoryManager();
+                populateCategorySelect();
+                nameInput.value = '';
+                editingNameInput.value = '';
+                document.getElementById('add-category-btn').textContent = 'Add';
+            }
+        });
+        
+        document.getElementById('category-list').addEventListener('click', (e) => {
+            const name = e.target.dataset.name;
+            if (e.target.classList.contains('category-delete-btn')) {
+                if (Object.keys(settings.categories).length > 1) {
+                    delete settings.categories[name];
+                    saveData();
+                    renderCategoryManager();
+                    populateCategorySelect();
+                } else {
+                    alert("You must have at least one category.");
+                }
+            } else if (e.target.classList.contains('category-edit-btn')) {
+                const category = settings.categories[name];
+                document.getElementById('editing-category-name').value = name;
+                document.getElementById('new-category-name').value = name;
+                document.getElementById('new-category-color').value = category.color;
+                document.getElementById('new-category-text-color').value = category.textColor;
+                document.getElementById('add-category-btn').textContent = 'Update';
+            }
+        });
+    }
+
+    function populateCategorySelect() {
+        const select = document.getElementById('task-category-select');
+        select.innerHTML = '';
+        for (const name in settings.categories) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+        }
+    }
+
+    function renderCategoryManager() {
+        const list = document.getElementById('category-list');
+        list.innerHTML = '';
+        for (const name in settings.categories) {
+            const item = document.createElement('div');
+            item.className = 'category-list-item';
+            const category = settings.categories[name];
+            item.innerHTML = `
+                <div>
+                    <span class="category-color-dot" style="background-color: ${category.color};"></span>
+                    <span style="color: ${category.textColor}; background-color: ${category.color}; padding: 2px 5px; border-radius: 4px;">${name}</span>
+                </div>
+                <div>
+                    <button data-name="${name}" class="category-edit-btn">Edit</button>
+                    <button data-name="${name}" class="category-delete-btn danger-btn">X</button>
+                </div>
+            `;
+            list.appendChild(item);
+        }
+    }
+
+    // --- SETTINGS ---
+    function setupSettingsListeners() {
+        document.getElementById('theme-select').addEventListener('change', e => {
+            settings.theme = e.target.value;
+            applySettings();
+            saveData();
+        });
+        document.getElementById('header-image-upload').addEventListener('change', handleHeaderImageUpload);
+        document.getElementById('remove-header-image-btn').addEventListener('click', removeHeaderImage);
+        document.getElementById('save-cropped-image-btn').addEventListener('click', saveCroppedImage);
+    }
+    
+    function applySettings() {
+        document.documentElement.dataset.theme = settings.theme;
+        document.getElementById('theme-select').value = settings.theme;
+        applyHeaderImage();
+    }
+
+    function handleHeaderImageUpload(e) {
+        const file = e.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const imageElement = document.getElementById('image-to-crop');
+            imageElement.src = event.target.result;
+            imageCropperModal.style.display = 'block';
+            
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(imageElement, {
+                aspectRatio: 1400 / 200,
+                viewMode: 1,
+                background: false,
+                autoCropArea: 1,
+            });
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset file input
+    }
+    
+    function saveCroppedImage() {
+        if (!cropper) return;
+        const croppedCanvas = cropper.getCroppedCanvas();
+        if (!croppedCanvas) {
+            alert("Could not crop image.");
+            return;
+        }
+
+        const dataUrl = croppedCanvas.toDataURL('image/jpeg');
+        const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+        if (!settings.headerImages) settings.headerImages = {};
+        settings.headerImages[monthKey] = dataUrl;
+        
+        applyHeaderImage();
+        saveData();
+        closeModal(imageCropperModal);
+    }
+    
+    function applyHeaderImage() {
+        const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+        const banner = document.getElementById('header-banner');
+        if (settings.headerImages && settings.headerImages[monthKey]) {
+            banner.style.backgroundImage = `url(${settings.headerImages[monthKey]})`;
+            banner.style.display = 'block';
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+    
+    function removeHeaderImage() {
+        const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+        if (settings.headerImages && settings.headerImages[monthKey]) {
+            delete settings.headerImages[monthKey];
+            applyHeaderImage();
+            saveData();
+        }
+    }
+
+    // --- IMPORT/EXPORT ---
+    function setupImportExportListeners() {
+        document.getElementById('export-json-btn').addEventListener('click', exportJSON);
+        document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+        document.getElementById('import-file-input').addEventListener('change', importJSON);
+    }
+
+    function exportJSON() {
+        const dataStr = JSON.stringify({ tasks, settings }, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        downloadFile(blob, 'ggcalendar-backup.json');
+    }
+    
+    function exportCSV() {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "id,title,startDate,startTime,endDate,endTime,category,details,recurrenceRule,recurrenceEnd\n";
+        
+        Object.values(tasks).flat().forEach(task => {
+            const row = [
+                task.id, `"${task.title}"`, task.startDate, task.startTime, task.endDate, task.endTime,
+                task.category, `"${(task.details || '').replace(/"/g, '""')}"`, task.recurrence?.rule || '', task.recurrence?.end || ''
+            ].join(',');
+            csvContent += row + "\n";
+        });
+        
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "ggcalendar-export.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function importJSON(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const importedData = JSON.parse(event.target.result);
+                if (importedData.tasks) {
+                    for (const date in importedData.tasks) {
+                        if (!tasks[date]) tasks[date] = [];
+                        importedData.tasks[date].forEach(newTask => {
+                            const existingIndex = tasks[date].findIndex(t => t.id === newTask.id);
+                            if (existingIndex > -1) tasks[date][existingIndex] = newTask;
+                            else tasks[date].push(newTask);
+                        });
+                    }
+                }
+                if (importedData.settings) {
+                    settings = { ...settings, ...importedData.settings };
+                }
+                saveData();
+                applySettings();
+                render();
+                alert('Data imported successfully!');
+            } catch (error) {
+                alert('Error importing file. Make sure it is a valid JSON backup from GGCalendar.');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    function downloadFile(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // --- UTILITY FUNCTIONS ---
+    function toYYYYMMDD(date) { 
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function formatTime(timeStr) {
+        if (!timeStr) return '';
+        const [h, m] = timeStr.split(':');
+        const d = new Date(0, 0, 0, h, m);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+    function truncate(str, len) {
+        if (!str) return '';
+        const noHtml = str.replace(/<[^>]*>?/gm, ' ');
+        const cleanStr = noHtml.replace(/\s+/g, ' ').trim();
+        return cleanStr.length > len ? cleanStr.substring(0, len) + '...' : cleanStr;
+    }
+
+    // --- STARTUP ---
+    init();
+});
+</script>
+</body>
+</html>
